@@ -1,5 +1,5 @@
 import { Tip, TrackTips, tips } from './model';
-import { context, PersistentVector, ContractPromiseBatch } from "near-sdk-as";
+import { context, ContractPromiseBatch } from "near-sdk-as";
 
 // The maximum number of latest messages the contract returns.
 const TAMA_PC = 0.03;
@@ -16,16 +16,20 @@ export function addTip(trackId: string): void {
 function _getReceiver(trackId: string): string {
   let track = tips.get(trackId);
   assert(track != null, "Impossible to send tip as track hasn't been initialized yet");
+  if (track == null){
+    return "";
+  }
   assert(track.receiver != null && track.receiver != "", "Impossible to send tip as receiver isn't set");
   return track.receiver
 }
 
-function _addTipToTrack(trackId: string, tip: Tip): void{
+function _addTipToTrack(trackId: string, tip: Tip): TrackTips | null{
   let trackTips = tips.get(trackId);
   assert(trackTips != null, "Track is undefined");
   trackTips.total += tip.amount;
   trackTips.tips.push(tip);
   tips.set(trackId, trackTips);
+  return trackTips;
 }
 
 export function addTrack(trackId: string, receiver: string): void{
@@ -34,7 +38,7 @@ export function addTrack(trackId: string, receiver: string): void{
   tips.set(trackId, trackTip);
 }
 
-export function getTips(trackId: string): TrackTips{
+export function getTips(trackId: string): TrackTips | null{
   const trackTips = tips.get(trackId);
   assert(trackTips != null, "Track is undefined");
   return trackTips;

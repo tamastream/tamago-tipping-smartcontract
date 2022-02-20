@@ -20,7 +20,7 @@ export class Tip {
   tips: PersistentVector<Tip>;
   total: u128;
   constructor(public receiver: string, trackId: string) {
-    this.total = 0;
+    this.total =  u128.from('0');
     this.tips = new PersistentVector<Tip>(trackId);
     this.receiver = receiver;
   }
