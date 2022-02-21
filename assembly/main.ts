@@ -1,15 +1,16 @@
 import { Tip, TrackTips, tips } from './model';
-import { context, ContractPromiseBatch } from "near-sdk-as";
+import { context, ContractPromiseBatch, u128 } from "near-sdk-as";
 
 // The maximum number of latest messages the contract returns.
-const TAMA_PC = 0.03;
+const TAMA_PC = 3;
 const TAMA_ADDR = "tamago.testnet";
 
 export function addTip(trackId: string): void {
   const amount = context.attachedDeposit;
   const tip = new Tip(amount);
-  ContractPromiseBatch.create(_getReceiver(trackId)).transfer(amount * (1 - TAMA_PC));
-  ContractPromiseBatch.create(TAMA_ADDR).transfer(amount * (TAMA_PC));
+  const rec_amount = u128.mul(u128.div(amount, u128.fromU32(100)), u128.fromU32(TAMA_PC));
+  ContractPromiseBatch.create(_getReceiver(trackId)).transfer(rec_amount);
+  ContractPromiseBatch.create(TAMA_ADDR).transfer(u128.sub(amount, rec_amount));
   _addTipToTrack(trackId, tip);
 }
 
@@ -26,7 +27,10 @@ function _getReceiver(trackId: string): string {
 function _addTipToTrack(trackId: string, tip: Tip): TrackTips | null{
   let trackTips = tips.get(trackId);
   assert(trackTips != null, "Track is undefined");
-  trackTips.total += tip.amount;
+  if (trackTips == null){
+    return null;
+  }
+  trackTips.total = u128.add(trackTips.total, tip.amount);
   trackTips.tips.push(tip);
   tips.set(trackId, trackTips);
   return trackTips;
