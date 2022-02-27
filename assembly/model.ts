@@ -1,5 +1,6 @@
 import { context, u128, PersistentVector, PersistentMap } from "near-sdk-as";
 
+const initDate = 1640995200000000000;
 /** 
  * Exporting a new class Comment so it can be used outside of this file.
  */
@@ -19,10 +20,12 @@ export class Tip {
  export class TrackTips {
   tips: PersistentVector<Tip>;
   total: u128;
+  created: u32;
   constructor(public receiver: string, trackId: string) {
     this.total =  u128.from('0');
     this.tips = new PersistentVector<Tip>(trackId);
     this.receiver = receiver;
+    this.created = u32((context.blockTimestamp - initDate) / 10 ** 9);
   }
  }
  

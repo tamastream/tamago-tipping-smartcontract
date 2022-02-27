@@ -4,7 +4,7 @@ import { context, ContractPromiseBatch, u128 } from "near-sdk-as";
 // The maximum number of latest messages the contract returns.
 const TAMA_PC = 3;
 const TAMA_ADDR = "tamago.testnet";
-const MIN_TIP = u128.from('1000000000000000000000');
+const MIN_TIP = u128.from('10000000000000000000000');
 
 export function addTip(trackId: string): void {
   assert(context.attachedDeposit >= MIN_TIP, "Minimum tip is " + MIN_TIP.toString());
