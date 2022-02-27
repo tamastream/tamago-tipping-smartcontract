@@ -7,7 +7,7 @@ const TAMA_ADDR = "tamago.testnet";
 const MIN_TIP = u128.from('1000000000000000000000');
 
 export function addTip(trackId: string): void {
-  assert(context.attachedDeposit >= MIN_TIP, "Minimum tip is " + MIN_TIP);
+  assert(context.attachedDeposit >= MIN_TIP, "Minimum tip is " + MIN_TIP.toString());
   const amount = context.attachedDeposit;
   const tip = new Tip(amount);
   const rec_amount = u128.mul(u128.div(amount, u128.fromU32(100)), u128.fromU32(TAMA_PC));
