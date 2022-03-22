@@ -38,3 +38,4 @@ export class Tip {
  * It will be used as a prefix to all keys required to store data in the storage.
  */
 export const tips = new PersistentMap<string, TrackTips>("");
+export const receivers = new PersistentMap<string, PersistentVector<Tip>>("r");
