@@ -8,8 +8,7 @@ const MIN_TIP = u128.from('10000000000000000000000');
 const MASTER_ACCOUNT = "backend.tamago.testnet"
 
 export function addTip(trackId: string): ReturnObject<bool> | null {
-  //assert(context.attachedDeposit >= MIN_TIP, "Minimum tip is " + MIN_TIP.toString());
-  if (context.attachedDeposit < MIN_TIP) throw new Error('Minimum');
+  assert(context.attachedDeposit >= MIN_TIP, "Minimum tip is " + MIN_TIP.toString());
   const amount = context.attachedDeposit;
   const tip = new Tip(amount);
   const rec_amount = u128.mul(u128.div(amount, u128.fromU32(100)), u128.fromU32(TAMA_PC));
