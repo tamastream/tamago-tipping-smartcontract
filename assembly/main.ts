@@ -110,7 +110,7 @@ export function getTipsReceivedTotal(receiverId: string): ReturnObject<u128> {
       success: false,
       error_code:  'RECEIVER_UNDEFINED',
       error_message: "Receiver is undefined",
-      data: new u128(0);
+      data: new u128(0)
     };
   }
   let total = new u128(0);
