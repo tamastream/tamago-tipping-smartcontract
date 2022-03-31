@@ -6,8 +6,8 @@
         "build": "yarn build:contract",
         "build:contract": "asb",
         "build:contract:debug": "asb --target debug",
-        "deploy": "yarn build && near deploy",
-        "dev": "yarn build:contract:debug && near dev-deploy",
+        "deploy": "yarn build && near deploy --accountId tip.tamago.testnet --wasmFile out/tipping.wasm",
+        "dev": "yarn build:contract:debug && near dev-deploy out/tipping.wasm",
         "lint": "eslint \"./**/*.js\" \"./**/*.jsx\"",
         "test": "yarn build:contract:debug && asp"
     },

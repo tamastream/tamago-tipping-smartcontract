@@ -29,7 +29,13 @@ export class Tip {
   }
  }
  
- 
+ @nearBindgen
+ export class ReturnObject<T>{
+  success: bool;
+  error_code: string;
+  error_message: string;
+  data: T;
+}
 
 /**
  * collections.vector is a persistent collection. Any changes to it will

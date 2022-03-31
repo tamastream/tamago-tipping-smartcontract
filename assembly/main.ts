@@ -1,4 +1,4 @@
-import { Tip, TrackTips, tips, receivers } from './model';
+import { Tip, TrackTips, ReturnObject, tips, receivers } from './model';
 import { context, ContractPromiseBatch, PersistentVector, u128 } from "near-sdk-as";
 
 // The maximum number of latest messages the contract returns.
@@ -7,8 +7,9 @@ const TAMA_ADDR = "tamago.testnet";
 const MIN_TIP = u128.from('10000000000000000000000');
 const MASTER_ACCOUNT = "backend.tamago.testnet"
 
-export function addTip(trackId: string): void {
-  assert(context.attachedDeposit >= MIN_TIP, "Minimum tip is " + MIN_TIP.toString());
+export function addTip(trackId: string): ReturnObject<bool> | null {
+  //assert(context.attachedDeposit >= MIN_TIP, "Minimum tip is " + MIN_TIP.toString());
+  if (context.attachedDeposit < MIN_TIP) throw new Error('Minimum');
   const amount = context.attachedDeposit;
   const tip = new Tip(amount);
   const rec_amount = u128.mul(u128.div(amount, u128.fromU32(100)), u128.fromU32(TAMA_PC));
@@ -16,6 +17,12 @@ export function addTip(trackId: string): void {
   ContractPromiseBatch.create(TAMA_ADDR).transfer(rec_amount);
   _addTipToTrack(trackId, tip);
   _addTipToReceiver(_getReceiver(trackId), tip);
+  return {
+    success: true,
+    error_code: '',
+    error_message: '',
+    data: true
+  };
 }
 
 function _getReceiver(trackId: string): string {
@@ -50,16 +57,20 @@ function _addTipToReceiver(receiver: string, tip: Tip): void{
   return;
 }
 
-export function addTrack(trackId: string, receiver: string): void{
-  assert(tips.get(trackId) == null, "Track has already been initialized");
+export function addTrack(trackId: string, receiver: string): bool {
   assert(context.sender == MASTER_ACCOUNT, "Only " + MASTER_ACCOUNT + " can initialize a track");
-  const trackTip = new TrackTips(receiver, trackId);
-  tips.set(trackId, trackTip);
+  //assert(tips.get(trackId) == null, "Track has already been initialized");
+  if (tips.get(trackId) == null) {
+    const trackTip = new TrackTips(receiver, trackId);
+    tips.set(trackId, trackTip);
+    return true;
+  } 
+  return false;
 }
 
 export function getTipsTrack(trackId: string, elements: number=10, offset: number=0): Tip[] | null{
   const trackTips = tips.get(trackId);
-  assert(trackTips != null, "Track is undefined");
+  //assert(trackTips != null, "Track is undefined");
   if (trackTips == null){
     return null;
   }
@@ -72,17 +83,16 @@ export function getTipsTrack(trackId: string, elements: number=10, offset: numbe
 
 export function getTipsTrackTotal(trackId: string): u128{
   const trackTips = tips.get(trackId);
-  assert(trackTips != null, "Track is undefined");
+  //assert(trackTips != null, "Track is undefined");
   if (trackTips == null){
     return new u128(0);
   }
-
   return trackTips.total;
 }
 
-export function getTipsReceived(receiverId: string, elements: number=10, offset: number=0): Tip[] | null{
+export function getTipsReceived(receiverId: string, elements: number=10, offset: number=0): Tip[] | null {
   const receiverTips = receivers.get(receiverId);
-  assert(receiverTips != null, "Receiver is undefined");
+  //assert(receiverTips != null, "Receiver is undefined");
   if (receiverTips == null){
     return null;
   }
@@ -93,15 +103,25 @@ export function getTipsReceived(receiverId: string, elements: number=10, offset:
   return retTips;
 }
 
-export function getTipsReceivedTotal(receiverId: string): u128{
+export function getTipsReceivedTotal(receiverId: string): ReturnObject<u128> {
   const receiverTips = receivers.get(receiverId);
-  assert(receiverTips != null, "Receiver is undefined");
+  //assert(receiverTips != null, "Receiver is undefined");
   if (receiverTips == null){
-    return new u128(0);
+    return {
+      success: false,
+      error_code:  'RECEIVER_UNDEFINED',
+      error_message: "Receiver is undefined",
+      data: new u128(0);
+    };
   }
   let total = new u128(0);
   for (let i = 0; i <= receiverTips.length; i++){
     total = u128.add(total, receiverTips[i].amount);
   }
-  return total;
+  return {
+    success: true,
+    error_code: '',
+    error_message: '',
+    data: total
+  };
 }
