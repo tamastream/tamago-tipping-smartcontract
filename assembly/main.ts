@@ -4,7 +4,7 @@ import { context, ContractPromiseBatch, PersistentVector, u128, storage } from "
 // The maximum number of latest messages the contract returns.
 const TAMA_PC = 3;
 const TAMA_ADDR = "tamago.testnet";
-const MIN_TIP = u128.from('10000000000000000000000');
+const MIN_TIP = u128.from('200000000000000000000000');
 const MASTER_ACCOUNT = "backend.tamago.testnet"
 
 export function addTip(trackId: string): ReturnObject<u32> | null {
