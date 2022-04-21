@@ -1,20 +1,19 @@
 import { Tip, ReturnObject, ReturnTip, tips, receiverIdx, senderIdx, trackIdx, accountToId, idToAccount, trackOwner } from './model';
 import { context, ContractPromiseBatch, PersistentVector, u128, storage } from "near-sdk-as";
 
-// The maximum number of latest messages the contract returns.
 const TAMA_PC = 3;
-const TAMA_ADDR = "tamago.testnet";
-const MIN_TIP = u128.from('10000000000000000000000');
+const TAMA_ADDR = "tip.tamago.testnet";
+const MIN_TIP = u128.from('200000000000000000000000');
 const MASTER_ACCOUNT = "backend.tamago.testnet"
 
-export function addTip(trackId: string): ReturnObject<u32> | null {
+export function addTip(trackId: string): ReturnObject<ReturnTip | null> | null {
 
   if (context.attachedDeposit < MIN_TIP) {
     return {
       success: false,
       error_code: 'MIN_TIP',
       error_message: "Minimum tip is " + MIN_TIP.toString(),
-      data: 0
+      data: null
     };
   }
 
@@ -24,22 +23,24 @@ export function addTip(trackId: string): ReturnObject<u32> | null {
       success: false,
       error_code: 'NO_OWNER',
       error_message: "Track has no owner",
-      data: 0
+      data: null
     };
   }  
 
   const ownerId = trackOwner.getSome(tId);
-  const receiverId = _accountToId(context.sender);
+  const senderId = _accountToId(context.sender);
   const amount = context.attachedDeposit;  
-  const tip = new Tip(tId, ownerId, receiverId, amount);
+  const tip = new Tip(tId, ownerId, senderId, amount);
 
   const rec_amount = u128.mul(u128.div(amount, u128.fromU32(100)), u128.fromU32(TAMA_PC));
 
-  ContractPromiseBatch.create( _idToAccount(u32(ownerId)).toString() ).transfer(u128.sub(amount, rec_amount));
+  ContractPromiseBatch.create( _idToAccount(u32(ownerId) ).toString() ).transfer(u128.sub(amount, rec_amount));
   ContractPromiseBatch.create( TAMA_ADDR ).transfer(rec_amount);
 
   let tipInd = storage.getPrimitive<u32>('tc', 0);
   tipInd++;
+
+  storage.set<u32>('tc', u32(tipInd));
 
   // add to tip map
   tips.set(tipInd,tip);
@@ -50,22 +51,21 @@ export function addTip(trackId: string): ReturnObject<u32> | null {
   recIdx.push(tipInd);
   receiverIdx.set(u32(ownerId),recIdx);
 
-  let senIdx = senderIdx.get(u32(receiverId), new Array<u32>());
+  let senIdx = senderIdx.get(u32(senderId), new Array<u32>());
   if (senIdx == null) senIdx = new Array<u32>();
   senIdx.push(tipInd);
-  senderIdx.set(u32(receiverId),senIdx);
+  senderIdx.set(u32(senderId),senIdx);
 
   let traIdx = trackIdx.get(tId, new Array<u32>());
   if (traIdx == null) traIdx = new Array<u32>();
   traIdx.push(tipInd);
   trackIdx.set(tId,traIdx);
 
-
   return {
     success: true,
     error_code: '',
     error_message: '',
-    data: tipInd
+    data: new ReturnTip(tId, _idToAccount(u32(ownerId)), context.sender, amount, tip.c)
   };
 
 }
@@ -80,14 +80,14 @@ function _accountToId(account: string): u32 {
   let userCount = storage.getPrimitive<u32>('uc', 0);
   userCount++;
   accountToId.set(account, u32(userCount));
+  idToAccount.set(u32(userCount), account);
   storage.set<u32>('uc', u32(userCount));
-  return userCount;
-  
+  return userCount;  
 }
 
 function _idToAccount(id: u32): string {
   const account = idToAccount.get(id);
-  return account ? account : '';  
+  return account ? account : '';    
 }
 
 export function addTrack(trackId: string, receiver: string): bool {
@@ -95,6 +95,13 @@ export function addTrack(trackId: string, receiver: string): bool {
   const tId = u128.from(trackId).as<u32>();
   trackOwner.set(tId, _accountToId(receiver));
   return true;
+}
+
+export function getAccountId(account: string): string | null {
+  if (accountToId.contains(account)) {
+    return accountToId.getSome(account).toString();
+  }
+  return null;
 }
 
 export function getTrackOwner(trackId: string): string | null {  
@@ -110,9 +117,9 @@ export function getTipsTrack(trackId: string): ReturnTip[] | null{
   const trackTips = trackIdx.get(tId);
   if (trackTips != null){
     let retTips = new Array<ReturnTip>();
-    for (let i = 1; i < trackTips.length; i++) {
-      const t = tips.get(u32(i));
-      if (t != null) retTips[i as u32] = new ReturnTip(t.t, _idToAccount(t.r), _idToAccount(t.s), t.a, t.c);
+    for (let i = 0; i < trackTips.length; i++) {
+      const t = tips.get(u32(trackTips[i]));
+      if (t != null) retTips.push(new ReturnTip(t.t, _idToAccount(t.r), _idToAccount(t.s), t.a, t.c));
     }
     return retTips;
   }
@@ -127,8 +134,8 @@ export function getTipsTrackTotal(trackId: string): ReturnObject<Map<string,u128
     const trackTips = trackIdx.getSome(tId);  
 
     let total = new u128(0);
-    for (let i = 1; i < trackTips.length; i++) {
-      const t = tips.get(i as u32);    
+    for (let i = 0; i < trackTips.length; i++) {
+      const t = tips.get(trackTips[i]);    
       if (t) {
         const amt = t.a;
         if (amt) {
@@ -160,51 +167,122 @@ export function getTipsTrackTotal(trackId: string): ReturnObject<Map<string,u128
   
 }
 
-/*
-export function getTipsSent(): Tip[] | null {
-  let retTips = new Array<Tip>();
+export function getTipsReceivedTotal(receiver: string): ReturnObject<Map<string,u128>> {
 
-}
+  if (accountToId.contains(receiver)) {
 
-export function getTipsReceived(receiverId: string, elements: number=10, offset: number=0): Tip[] | null {
-  const receiverTips = receivers.get(receiverId);
-  //assert(receiverTips != null, "Receiver is undefined");
-  if (receiverTips == null){
-    return null;
-  }
-  let retTips = new Array<Tip>();
-  for (let i = offset * elements; i < (offset * elements + elements) && i < receiverTips.length; i++){
-    retTips.push(receiverTips[i as i32]);
-  }
-  return retTips;
-}
-
-export function getTipsReceivedTotal(receiverId: string): ReturnObject<Map<string,u128>> {
-  const receiverTips = receivers.get(receiverId);
-  if (receiverTips == null){
-    const rtn = new Map<string,u128>();
-    rtn.set("count",  new u128(0));
-    rtn.set("total",  new u128(0));
-    return {
-      success: true,
-      error_code:  '',
-      error_message: '',
-      data: rtn
-    };
+    const rId = _accountToId(receiver);  
+    if (receiverIdx.contains(rId)) {
+      const receiverTips = receiverIdx.getSome(rId);
+      let total = new u128(0);
+      for (let i = 0; i < receiverTips.length; i++) {
+        const t = tips.get(receiverTips[i]);    
+        if (t) {
+          const amt = t.a;
+          if (amt) {
+            total = u128.add(total, amt);          
+          }
+        }
+      }
+    
+      const rtn = new Map<string,u128>();
+      rtn.set("count",  new u128(receiverTips.length));
+      rtn.set("total",  total);
+      return {
+        success: true,
+        error_code:  '',
+        error_message: '',
+        data: rtn
+      };
+    }
   }
 
-  let total = new u128(0);
-  for (let i = 0; i <= receiverTips.length; i++){
-    total = u128.add(total, receiverTips[i].amount);
-  }
   const rtn = new Map<string,u128>();
-  rtn.set("count",  new u128(receiverTips.length));
-  rtn.set("total",  total);
+  rtn.set("count",  new u128(0));
+  rtn.set("total",  new u128(0));
   return {
     success: true,
-    error_code: '',
+    error_code:  '',
     error_message: '',
     data: rtn
   };
+  
 }
-*/
+
+export function getTipsReceived(receiver: string): ReturnTip[] | null{
+
+  if (accountToId.contains(receiver)) {
+    const rId = _accountToId(receiver);  
+    if (receiverIdx.contains(rId)) {
+      const receiverTips = receiverIdx.getSome(rId);
+      let retTips = new Array<ReturnTip>();
+      for (let i = 0; i < receiverTips.length; i++) {
+        const t = tips.get(receiverTips[i]);
+        if (t != null) retTips.push(new ReturnTip(t.t, _idToAccount(t.r), _idToAccount(t.s), t.a, t.c));
+      }
+      return retTips;
+    }
+    return new Array<ReturnTip>();  
+  }
+  return new Array<ReturnTip>();  
+}
+
+export function getTipsSentTotal(sender: string): ReturnObject<Map<string,u128>> {
+
+  if (accountToId.contains(sender)) {
+
+    const sId = _accountToId(sender);  
+    if (senderIdx.contains(sId)) {
+      const senderTips = senderIdx.getSome(sId);
+      let total = new u128(0);
+      for (let i = 0; i < senderTips.length; i++) {
+        const t = tips.get(senderTips[i]);    
+        if (t) {
+          const amt = t.a;
+          if (amt) {
+            total = u128.add(total, amt);          
+          }
+        }
+      }
+    
+      const rtn = new Map<string,u128>();
+      rtn.set("count",  new u128(senderTips.length));
+      rtn.set("total",  total);
+      return {
+        success: true,
+        error_code:  '',
+        error_message: '',
+        data: rtn
+      };
+    }
+  }
+
+  const rtn = new Map<string,u128>();
+  rtn.set("count",  new u128(0));
+  rtn.set("total",  new u128(0));
+  return {
+    success: true,
+    error_code:  '',
+    error_message: '',
+    data: rtn
+  };
+  
+}
+
+export function getTipsSent(sender: string): ReturnTip[] | null{
+
+  if (accountToId.contains(sender)) {
+    const sId = _accountToId(sender);  
+    if (senderIdx.contains(sId)) {
+      const senderTips = senderIdx.getSome(sId);
+      let retTips = new Array<ReturnTip>();
+      for (let i = 0; i < senderTips.length; i++) {
+        const t = tips.get(senderTips[i]);
+        if (t != null) retTips.push(new ReturnTip(t.t, _idToAccount(t.r), _idToAccount(t.s), t.a, t.c));
+      }
+      return retTips;
+    }
+    return new Array<ReturnTip>();  
+  }
+  return new Array<ReturnTip>();  
+}

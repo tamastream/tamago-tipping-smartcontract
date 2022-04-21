@@ -22,7 +22,7 @@ export class Tip {  // class written to chain as JSON, hence the short variable 
 }
 
 @nearBindgen
-export class ReturnTip {  // class written to chain as JSON, hence the short variable names
+export class ReturnTip {  // only used for return data
   trackId: u32; // trackId
   amount: u128; // amount
   receiver: string; // receiver id
