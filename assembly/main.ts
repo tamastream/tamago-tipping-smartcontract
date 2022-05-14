@@ -1,18 +1,32 @@
-import { Tip, ReturnObject, ReturnTip, tips, receiverIdx, senderIdx, trackIdx, accountToId, idToAccount, trackOwner } from './model';
+import { Tip, ReturnObject, ReturnTip, LabelFees, tips, receiverIdx, senderIdx, trackIdx, accountToId, idToAccount, trackOwner, trackLabel } from './model';
 import { context, ContractPromiseBatch, PersistentVector, u128, storage } from "near-sdk-as";
 
 const TAMA_PC = 3;
 const TAMA_ADDR = "tip.tamago.testnet";
-const MIN_TIP = u128.from('200000000000000000000000');
 const MASTER_ACCOUNT = "backend.tamago.testnet"
+
+export function setMinTip(minTip: string): bool{
+  assert(context.sender == MASTER_ACCOUNT, "Only " + MASTER_ACCOUNT + " can set min tip");
+  const tip = u128.from(minTip);
+  storage.set<u128>("m", tip);
+  return true;
+}
+
+function _getMinTip(): u128{
+  const minTip = storage.get<u128>("counter");
+  if (minTip === null){
+    return u128.from(50000000000000000000000);
+  }
+  return minTip;
+}
 
 export function addTip(trackId: string): ReturnObject<ReturnTip | null> | null {
 
-  if (context.attachedDeposit < MIN_TIP) {
+  if (context.attachedDeposit < _getMinTip()) {
     return {
       success: false,
       error_code: 'MIN_TIP',
-      error_message: "Minimum tip is " + MIN_TIP.toString(),
+      error_message: "Minimum tip is " + _getMinTip.toString(),
       data: null
     };
   }
@@ -33,8 +47,20 @@ export function addTip(trackId: string): ReturnObject<ReturnTip | null> | null {
   const tip = new Tip(tId, ownerId, senderId, amount);
 
   const rec_amount = u128.mul(u128.div(amount, u128.fromU32(100)), u128.fromU32(TAMA_PC));
+  const track_amount = u128.sub(amount, rec_amount);
 
-  ContractPromiseBatch.create( _idToAccount(u32(ownerId) ).toString() ).transfer(u128.sub(amount, rec_amount));
+  // Check if the track has a label and, if it's the case, calculate fees
+  if(trackLabel.contains(tId)){
+    const label = trackLabel.getSome(tId);
+    const label_amount =  u128.mul(u128.div(track_amount, u128.fromU32(100)), u128.fromU32(label.p));
+    const artist_amout = u128.sub(track_amount, label_amount);
+    ContractPromiseBatch.create( _idToAccount(u32(label.a) ).toString() ).transfer(label_amount);
+    ContractPromiseBatch.create( _idToAccount(u32(ownerId) ).toString() ).transfer(artist_amout);
+  }
+  else{
+    ContractPromiseBatch.create( _idToAccount(u32(ownerId) ).toString() ).transfer(u128.sub(amount, rec_amount));
+  }
+
   ContractPromiseBatch.create( TAMA_ADDR ).transfer(rec_amount);
 
   let tipInd = storage.getPrimitive<u32>('tc', 0);
@@ -88,6 +114,15 @@ function _accountToId(account: string): u32 {
 function _idToAccount(id: u32): string {
   const account = idToAccount.get(id);
   return account ? account : '';    
+}
+
+export function addTrackLabel(trackId: string, receiver: string, labelId: string, percentage: string): bool {
+  const trackTip = addTrack(trackId, receiver);
+  const tId = u128.from(trackId).as<u32>();
+  const tP = u128.from(percentage).as<u32>();
+  const lf = new LabelFees(tP, _accountToId(labelId));
+  trackLabel.set(tId, lf);
+  return true && trackTip;
 }
 
 export function addTrack(trackId: string, receiver: string): bool {
