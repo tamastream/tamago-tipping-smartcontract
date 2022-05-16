@@ -13,7 +13,7 @@ export function setMinTip(minTip: string): bool{
 }
 
 function _getMinTip(): u128{
-  const minTip = storage.get<u128>("counter");
+  const minTip = storage.get<u128>("m");
   if (minTip === null){
     return u128.from(50000000000000000000000);
   }
@@ -21,12 +21,12 @@ function _getMinTip(): u128{
 }
 
 export function addTip(trackId: string): ReturnObject<ReturnTip | null> | null {
-
-  if (context.attachedDeposit < _getMinTip()) {
+  const MIN_TIP = _getMinTip();
+  if (context.attachedDeposit < MIN_TIP) {
     return {
       success: false,
       error_code: 'MIN_TIP',
-      error_message: "Minimum tip is " + _getMinTip.toString(),
+      error_message: "Minimum tip is " + MIN_TIP.toString(),
       data: null
     };
   }
@@ -58,7 +58,7 @@ export function addTip(trackId: string): ReturnObject<ReturnTip | null> | null {
     ContractPromiseBatch.create( _idToAccount(u32(ownerId) ).toString() ).transfer(artist_amout);
   }
   else{
-    ContractPromiseBatch.create( _idToAccount(u32(ownerId) ).toString() ).transfer(u128.sub(amount, rec_amount));
+    ContractPromiseBatch.create( _idToAccount(u32(ownerId) ).toString() ).transfer(track_amount);
   }
 
   ContractPromiseBatch.create( TAMA_ADDR ).transfer(rec_amount);
@@ -116,11 +116,11 @@ function _idToAccount(id: u32): string {
   return account ? account : '';    
 }
 
-export function addTrackLabel(trackId: string, receiver: string, labelId: string, percentage: string): bool {
+export function addTrackLabel(trackId: string, receiver: string, label: string, percentage: string): bool {
   const trackTip = addTrack(trackId, receiver);
   const tId = u128.from(trackId).as<u32>();
   const tP = u128.from(percentage).as<u32>();
-  const lf = new LabelFees(tP, _accountToId(labelId));
+  const lf = new LabelFees(tP, _accountToId(label));
   trackLabel.set(tId, lf);
   return true && trackTip;
 }
