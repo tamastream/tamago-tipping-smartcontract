@@ -1,4 +1,4 @@
-import { context, u128, PersistentVector, PersistentMap } from "near-sdk-as";
+import { context, u128, storage, PersistentMap } from "near-sdk-as";
 
 const initDate = 1640995200000000000;
 
@@ -64,6 +64,18 @@ export class ReturnTip {  // only used for return data
   data: T;
 }
 
+@nearBindgen
+export class LabelFees{
+  p: u32; // percentage 1 = 0.01%
+  a: u32; // account id
+  constructor(percentage: u32, accountId: u32) {
+    this.p = percentage;
+    this.a = accountId;
+  }
+  
+
+}
+
 export const accountToId = new PersistentMap<string, u32>("ai");
 export const idToAccount = new PersistentMap<u32, string>("ia");
 export const tips        = new PersistentMap<u32, Tip>("t"); // 1 {1, 2, 11} // 2 {2, 2, 11}
@@ -71,6 +83,7 @@ export const receiverIdx = new PersistentMap<u32, Array<u32>>("rx"); // reciever
 export const senderIdx   = new PersistentMap<u32, Array<u32>>("sx"); // sender1 [1] // sender2 [2]
 export const trackIdx    = new PersistentMap<u32, Array<u32>>("tx"); // 12 (trackid)  [1,2]
 export const trackOwner  = new PersistentMap<u32, u32>("to"); // 1 2 - user 1 owns track 2
+export const trackLabel  = new PersistentMap<u32, LabelFees>("tl");
 
 /**
  * collections.vector is a persistent collection. Any changes to it will
