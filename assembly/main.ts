@@ -12,7 +12,7 @@ export function setMinTip(minTip: string): bool{
   return true;
 }
 
-function _getMinTip(): u128{
+export function getMinTip(): u128{
   const minTip = storage.get<u128>("m");
   if (minTip === null){
     return u128.from(50000000000000000000000);
@@ -21,7 +21,7 @@ function _getMinTip(): u128{
 }
 
 export function addTip(trackId: string): ReturnObject<ReturnTip | null> | null {
-  const MIN_TIP = _getMinTip();
+  const MIN_TIP = getMinTip();
   if (context.attachedDeposit < MIN_TIP) {
     return {
       success: false,
